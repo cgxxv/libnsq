@@ -26,7 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define UTLIST_VERSION 1.9.8
 
-#include <assert.h>
+#include "nsq.h"
 
 /* 
  * This file contains macros to manipulate singly and doubly-linked lists.
@@ -725,4 +725,11 @@ do {                                                                            
 } while (0)                                                                                    \
 
 #endif /* UTLIST_H */
+
+
+#ifdef DEBUG
+#define _DEBUG(...) fprintf(stdout, __VA_ARGS__)
+#else
+#define _DEBUG(...) do {;} while (0)
+#endif
 

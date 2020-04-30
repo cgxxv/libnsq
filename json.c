@@ -1,4 +1,4 @@
-#include "json.h"
+#include "nsq.h"
 
 nsq_json_tokener_t *nsq_json_tokener_new()
 {
