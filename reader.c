@@ -1,11 +1,5 @@
 #include "nsq.h"
 
-#ifdef DEBUG
-#define _DEBUG(...) fprintf(stdout, __VA_ARGS__)
-#else
-#define _DEBUG(...) do {;} while (0)
-#endif
-
 #define DEFAULT_LOOKUPD_INTERVAL     5.
 #define DEFAULT_COMMAND_BUF_LEN      4096
 #define DEFAULT_COMMAND_BUF_CAPACITY 4096

@@ -2,8 +2,7 @@
 
 static void message_handler(nsqRdr *rdr, nsqdConn *conn, nsqMsg *msg, void *ctx)
 {
-    _DEBUG("%s: %lld, %d, %s, %lu, %.*s\n", __FUNCTION__, msg->timestamp, msg->attempts, msg->id,
-        msg->body_length, (int)msg->body_length, msg->body);
+    _DEBUG("%s: %lld, %d, %s, %lu, %s\n", __FUNCTION__, msg->timestamp, msg->attempts, msg->id, (int)msg->body_length, msg->body);
     int ret = 0;
     //TestNsqMsgContext * test_ctx = (TestNsqMsgContext *)ctx;
     //int ret= ctx->process(msg->body, msg->body_length);

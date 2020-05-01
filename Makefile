@@ -27,15 +27,15 @@ libnsq.a: command.o reader.o nsqd_connection.o http.o message.o nsqlookupd.o jso
 	$(AR) $(AR_FLAGS) $@ $^
 	$(RANLIB) $@
 
-test: test-nsqd test-lookupd
+test: test-nsqd-sub test-lookupd-sub
 
-test-nsqd.o: test.c
+test-nsqd.o: test_sub.c
 	$(CC) -o $@ -c $< $(CFLAGS) -DNSQD_STANDALONE
 
-test-nsqd: test-nsqd.o libnsq.a
+test-nsqd-sub: test-nsqd.o libnsq.a
 	$(CC) -o $@ $^ $(LIBS)
 
-test-lookupd: test-nsqd.o libnsq.a
+test-lookupd-sub: test_sub.o libnsq.a
 	$(CC) -o $@ $^ $(LIBS)
 
 clean:

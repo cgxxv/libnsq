@@ -1,10 +1,10 @@
 #include "nsq.h"
 
-const static char *NEW_LINE   = "\n";
-const static char *NEW_SPACE  = " ";
-const static int MAX_BUF_SIZE = 4096;
-const static int MIN_BUF_SIZE = 2048;
-const static int BUF_DELTER   = 2;
+#define NEW_LINE     "\n"
+#define NEW_SPACE    " "
+#define MAX_BUF_SIZE 128
+#define MIN_BUF_SIZE 64
+#define BUF_DELTER   2
 
 void *nsq_buf_malloc(size_t buf_size, size_t n, size_t l)
 {
@@ -18,7 +18,7 @@ void *nsq_buf_malloc(size_t buf_size, size_t n, size_t l)
             buf_size *= BUF_DELTER;
             continue;
         }
-        buf = malloc(buf_size * sizeof(void));
+        buf = malloc(buf_size * sizeof(char));
         assert(NULL != buf);
         break;
     }
@@ -29,67 +29,57 @@ void *nsq_buf_malloc(size_t buf_size, size_t n, size_t l)
 void nsq_buffer_add(nsqBuf *buf, const char *name, const nsqCmdParams params[], size_t psize, const char *body)
 {
     size_t buf_size = MAX_BUF_SIZE;
-    void *b = malloc(buf_size * sizeof(void));
-    void *nb = NULL;
-    int v = 0;
+    char *b = malloc(buf_size * sizeof(char));
+    char *nb = NULL;
     assert(NULL != b);
     size_t n = 0;
     size_t l = 0;
 
-    l = strlen(name);
-    memcpy(b, name, l);
+    l = sprintf(b, "%s", name);
     n += l;
 
     if (NULL != params) {
         for (int i = 0; i < psize; i++) {
-            l = 0;
-            memcpy(b+n, NEW_SPACE, 1);
-            n++;
-            nb = nsq_buf_malloc(buf_size, n, l);
-            if (NULL != nb) {
-                memcpy(nb, b, n);
-                free(b);
-                b = nb;
-            }
+            l = sprintf(b+n, "%s", NEW_SPACE);
+            n += l;
+
             switch (params[i].t) {
                 case NSQ_PARAM_TYPE_INT:
-                    v = *((int *)params[i].v);
-                    do {
-                        v/=10;
-                        l++;
-                    } while(v!=0);
-                    sprintf(b+n, "%d", *((int *)params[i].v));
+                    l = sprintf(b+n, "%d", *((int *)params[i].v));
                     break;
                 case NSQ_PARAM_TYPE_CHAR:
-                    l = strlen(params[i].v);
-                    memcpy(b+n, params[i].v, l);
+                    nb = nsq_buf_malloc(buf_size, n, strlen(params[i].v));
+                    if (NULL != nb) {
+                        memcpy(nb, b, n);
+                        free(b);
+                        b = nb;
+                    }
+                    l = sprintf(b+n, "%s", (char *)params[i].v);
                     break;
             }
             n += l;
         }
     }
-    memcpy(b+n, NEW_LINE, 1);
-    n++;
+    l = sprintf(b+n, "%s", NEW_LINE);
+    n += l;
 
     if (NULL != body) {
-        l = 0;
         char byte[4] = "\0";
         uint32_t v = sizeof(body);
         byte[0] = (uint8_t)v >> 24;
         byte[1] = (uint8_t)v >> 16;
         byte[2] = (uint8_t)v >> 8;
         byte[3] = (uint8_t)v;
-        memcpy(b+n, byte, 4);
-        n += 4;
-        l = strlen(body);
-        nb = nsq_buf_malloc(buf_size, n, l);
+        l = sprintf(b+n, "%s", byte);
+        n += l;
+
+        nb = nsq_buf_malloc(buf_size, n, strlen(body));
         if (NULL != nb) {
             memcpy(nb, b, n);
             free(b);
             b = nb;
         }
-
-        memcpy(b+n, body, l);
+        l = sprintf(b+n, "%s", body);
         n += l;
     }
     
