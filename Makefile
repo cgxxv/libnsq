@@ -39,7 +39,7 @@ test-lookupd-sub: test_sub.o libnsq.a
 	$(CC) -o $@ $^ $(LIBS)
 
 clean:
-	rm -rf libnsq.a test-nsqd test-lookupd test.dSYM *.o
+	rm -rf libnsq.a test-nsqd-sub test-lookupd-sub test.dSYM *.o
 
 .PHONY: install clean all test
 

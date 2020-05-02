@@ -6,7 +6,7 @@
 typedef struct HttpClient {
     CURLM *multi;
     struct ev_loop *loop;
-    struct ev_timer timer_event;
+    struct ev_timer *timer_event;
     int still_running;
 } httpClient;
 
@@ -30,7 +30,7 @@ typedef struct HttpSocket {
     CURL *easy;
     int action;
     long timeout;
-    struct ev_io ev;
+    struct ev_io *ev;
     int evset;
     struct HttpClient *httpc;
 } httpSocket;

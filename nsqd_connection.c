@@ -47,7 +47,7 @@ static void nsqd_connection_read_data(nsqBufdSock *buffsock, void *arg)
     buffer_drain(buffsock->read_buf, 4);
     conn->current_msg_size -= 4;
 
-    _DEBUG("%s: frame type %d, data: %.*s\n", __FUNCTION__, conn->current_frame_type,
+    _DEBUG("%s: frame type %d, current_msg_size: %d, data: %p\n", __FUNCTION__, conn->current_frame_type,
         conn->current_msg_size, buffsock->read_buf->data);
 
     conn->current_data = buffsock->read_buf->data;
@@ -97,7 +97,7 @@ nsqdConn *new_nsqd_connection(struct ev_loop *loop, const char *address, int por
     void *arg)
 {
     nsqdConn *conn;
-    nsqRdr *rdr = (nsqRdr *)arg;
+    nsqReader *rdr = (nsqReader *)arg;
 
     conn = (nsqdConn *)malloc(sizeof(nsqdConn));
     conn->address = strdup(address);
@@ -145,7 +145,7 @@ void nsqd_connection_disconnect(nsqdConn *conn)
 void nsqd_connection_init_timer(nsqdConn *conn,
         void (*reconnect_callback)(EV_P_ ev_timer *w, int revents))
 {
-    nsqRdr *rdr = (nsqRdr *)conn->arg;
+    nsqReader *rdr = (nsqReader *)conn->arg;
     conn->reconnect_timer = (ev_timer *)malloc(sizeof(ev_timer));
     ev_timer_init(conn->reconnect_timer, reconnect_callback, rdr->cfg->lookupd_interval, rdr->cfg->lookupd_interval);
     conn->reconnect_timer->data = conn;

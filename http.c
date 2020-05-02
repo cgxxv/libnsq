@@ -6,13 +6,13 @@ static int multi_timer_cb(CURLM *multi, long timeout_ms, void *arg)
 {
     httpClient *httpc = (httpClient *)arg;
 
-    ev_timer_stop(httpc->loop, &httpc->timer_event);
+    ev_timer_stop(httpc->loop, httpc->timer_event);
     if (timeout_ms > 0) {
         double t = timeout_ms / 1000;
-        ev_timer_init(&httpc->timer_event, timer_cb, t, 0.);
-        ev_timer_start(httpc->loop, &httpc->timer_event);
+        ev_timer_init(httpc->timer_event, timer_cb, t, 0.);
+        ev_timer_start(httpc->loop, httpc->timer_event);
     } else {
-        timer_cb(httpc->loop, &httpc->timer_event, 0);
+        timer_cb(httpc->loop, httpc->timer_event, 0);
     }
 
     return 0;
@@ -86,7 +86,7 @@ static int sock_cb(CURL *e, curl_socket_t s, int what, void *arg, void *sock_arg
     if (what == CURL_POLL_REMOVE) {
         if (sock) {
             if (sock->evset) {
-                ev_io_stop(httpc->loop, &sock->ev);
+                ev_io_stop(httpc->loop, sock->ev);
             }
             free(sock);
         }
@@ -102,12 +102,12 @@ static int sock_cb(CURL *e, curl_socket_t s, int what, void *arg, void *sock_arg
         sock->action = what;
         sock->easy = e;
         if (sock->evset) {
-            ev_io_stop(httpc->loop, &sock->ev);
+            ev_io_stop(httpc->loop, sock->ev);
         }
-        ev_io_init(&sock->ev, event_cb, sock->sockfd, kind);
-        sock->ev.data = httpc;
+        ev_io_init(sock->ev, event_cb, sock->sockfd, kind);
+        sock->ev->data = httpc;
         sock->evset = 1;
-        ev_io_start(httpc->loop, &sock->ev);
+        ev_io_start(httpc->loop, sock->ev);
 
         if (with_new) {
             curl_multi_assign(httpc->multi, s, sock);
@@ -124,8 +124,8 @@ httpClient *new_http_client(struct ev_loop *loop)
     httpc = (httpClient *)malloc(sizeof(httpClient));
     httpc->loop = loop;
     httpc->multi = curl_multi_init();
-    ev_timer_init(&httpc->timer_event, timer_cb, 0., 0.);
-    httpc->timer_event.data = httpc;
+    ev_timer_init(httpc->timer_event, timer_cb, 0., 0.);
+    httpc->timer_event->data = httpc;
     curl_multi_setopt(httpc->multi, CURLMOPT_SOCKETFUNCTION, sock_cb);
     curl_multi_setopt(httpc->multi, CURLMOPT_SOCKETDATA, httpc);
     curl_multi_setopt(httpc->multi, CURLMOPT_TIMERFUNCTION, multi_timer_cb);
@@ -138,7 +138,7 @@ void free_http_client(httpClient *httpc)
 {
     if (httpc) {
         curl_multi_cleanup(httpc->multi);
-        ev_timer_stop(httpc->loop, &httpc->timer_event);
+        ev_timer_stop(httpc->loop, httpc->timer_event);
         free(httpc);
     }
 }
