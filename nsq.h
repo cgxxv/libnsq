@@ -17,8 +17,8 @@
 #include <assert.h>
 #include <curl/curl.h>
 #include <ev.h>
-#include <evbuffsock.h>
 
+#include "libevbuffsock/evbuffsock.h"
 #include "utlist.h"
 #include "http.h"
 #include "json.h"

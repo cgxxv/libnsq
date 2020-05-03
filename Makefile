@@ -4,7 +4,7 @@ LIBDIR=${PREFIX}/lib
 INCDIR=${PREFIX}/include
 
 CFLAGS+=-g -Wall -O2 -DDEBUG -fPIC
-LIBS=-lev -levbuffsock -lcurl
+LIBS=-lev -lcurl
 AR=ar
 AR_FLAGS=rc
 RANLIB=ranlib
@@ -16,14 +16,17 @@ else
 LIBS+=-ljson-c
 endif
 
-all: libnsq test
+all: evbuffsock libnsq test
+
+evbuffsock:
+	cd libevbuffsock && ${MAKE}
 
 libnsq: libnsq.a
 
 %.o: %.c
 	$(CC) -o $@ -c $< $(CFLAGS)
 
-libnsq.a: command.o reader.o nsqd_connection.o http.o message.o nsqlookupd.o json.o
+libnsq.a: libevbuffsock/buffered_socket.o libevbuffsock/buffer.o command.o reader.o nsqd_connection.o http.o message.o nsqlookupd.o json.o
 	$(AR) $(AR_FLAGS) $@ $^
 	$(RANLIB) $@
 
@@ -38,7 +41,12 @@ test-nsqd-sub: test-nsqd.o libnsq.a
 test-lookupd-sub: test_sub.o libnsq.a
 	$(CC) -o $@ $^ $(LIBS)
 
-clean:
+clean: evbuffsock-clean libnsq-clean
+	
+evbuffsock-clean:
+	cd libevbuffsock && ${MAKE} clean
+	
+libnsq-clean:
 	rm -rf libnsq.a test-nsqd-sub test-lookupd-sub test.dSYM *.o
 
 .PHONY: install clean all test

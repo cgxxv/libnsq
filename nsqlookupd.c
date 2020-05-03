@@ -9,7 +9,7 @@ void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
     const char *broadcast_address;
     int i, found, tcp_port;
 
-    _DEBUG("%s: status_code %d, body %.*s\n", __FUNCTION__, resp->status_code,
+    _DEBUG("%s: status_code %d, body %.*s", __FUNCTION__, resp->status_code,
         (int)BUFFER_HAS_DATA(resp->data), resp->data->data);
 
     if (resp->status_code != 200) {
@@ -21,27 +21,27 @@ void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
     jstok = nsq_json_tokener_new();
     jsobj = nsq_json_loadb(resp->data->data, (nsq_json_size_t)BUFFER_HAS_DATA(resp->data), 0, jstok);
     if (!jsobj) {
-        _DEBUG("%s: error parsing JSON\n", __FUNCTION__);
+        _DEBUG("%s: error parsing JSON", __FUNCTION__);
         nsq_json_tokener_free(jstok);
         return;
     }
 
     nsq_json_object_get(jsobj, "data", &data);
     if (!data) {
-        _DEBUG("%s: error getting 'data' key\n", __FUNCTION__);
+        _DEBUG("%s: error getting 'data' key", __FUNCTION__);
         nsq_json_decref(jsobj);
         nsq_json_tokener_free(jstok);
         return;
     }
     nsq_json_object_get(data, "producers", &producers);
     if (!producers) {
-        _DEBUG("%s: error getting 'producers' key\n", __FUNCTION__);
+        _DEBUG("%s: error getting 'producers' key", __FUNCTION__);
         nsq_json_decref(jsobj);
         nsq_json_tokener_free(jstok);
         return;
     }
 
-    _DEBUG("%s: num producers %ld\n", __FUNCTION__, (long)nsq_json_array_length(producers));
+    _DEBUG("%s: num producers %ld", __FUNCTION__, (long)nsq_json_array_length(producers));
     for (i = 0; i < nsq_json_array_length(producers); i++) {
         producer = nsq_json_array_get(producers, i);
         nsq_json_object_get(producer, "broadcast_address", &broadcast_address_obj);
@@ -50,7 +50,7 @@ void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
         broadcast_address = nsq_json_string_value(broadcast_address_obj);
         tcp_port = nsq_json_int_value(tcp_port_obj);
 
-        _DEBUG("%s: broadcast_address %s, port %d\n", __FUNCTION__, broadcast_address, tcp_port);
+        _DEBUG("%s: broadcast_address %s, port %d", __FUNCTION__, broadcast_address, tcp_port);
 
         found = 0;
         LL_FOREACH(rdr->conns, conn) {

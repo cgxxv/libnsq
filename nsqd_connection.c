@@ -7,7 +7,7 @@ static void nsqd_connection_connect_cb(nsqBufdSock *buffsock, void *arg)
 {
     nsqdConn *conn = (nsqdConn *)arg;
 
-    _DEBUG("%s: %p\n", __FUNCTION__, arg);
+    _DEBUG("%s: %p", __FUNCTION__, arg);
 
     // send magic
     char buff[10] = "  V2";
@@ -25,7 +25,7 @@ static void nsqd_connection_read_size(nsqBufdSock *buffsock, void *arg)
     nsqdConn *conn = (nsqdConn *)arg;
     uint32_t *msg_size_be;
 
-    _DEBUG("%s: %p\n", __FUNCTION__, arg);
+    _DEBUG("%s: %p", __FUNCTION__, arg);
 
     msg_size_be = (uint32_t *)buffsock->read_buf->data;
     buffer_drain(buffsock->read_buf, 4);
@@ -33,7 +33,7 @@ static void nsqd_connection_read_size(nsqBufdSock *buffsock, void *arg)
     // convert message length header from big-endian
     conn->current_msg_size = ntohl(*msg_size_be);
 
-    _DEBUG("%s: msg_size = %d bytes %p\n", __FUNCTION__, conn->current_msg_size, buffsock->read_buf->data);
+    _DEBUG("%s: msg_size = %d bytes %p", __FUNCTION__, conn->current_msg_size, buffsock->read_buf->data);
 
     buffered_socket_read_bytes(buffsock, conn->current_msg_size, nsqd_connection_read_data, conn);
 }
@@ -47,7 +47,7 @@ static void nsqd_connection_read_data(nsqBufdSock *buffsock, void *arg)
     buffer_drain(buffsock->read_buf, 4);
     conn->current_msg_size -= 4;
 
-    _DEBUG("%s: frame type %d, current_msg_size: %d, data: %p\n", __FUNCTION__, conn->current_frame_type,
+    _DEBUG("%s: frame type %d, current_msg_size: %d, data: %p", __FUNCTION__, conn->current_frame_type,
         conn->current_msg_size, buffsock->read_buf->data);
 
     conn->current_data = buffsock->read_buf->data;
@@ -76,7 +76,7 @@ static void nsqd_connection_close_cb(nsqBufdSock *buffsock, void *arg)
 {
     nsqdConn *conn = (nsqdConn *)arg;
 
-    _DEBUG("%s: %p\n", __FUNCTION__, arg);
+    _DEBUG("%s: %p", __FUNCTION__, arg);
 
     if (conn->close_callback) {
         conn->close_callback(conn, conn->arg);
@@ -87,7 +87,7 @@ static void nsqd_connection_error_cb(nsqBufdSock *buffsock, void *arg)
 {
     nsqdConn *conn = (nsqdConn *)arg;
 
-    _DEBUG("%s: conn %p\n", __FUNCTION__, conn);
+    _DEBUG("%s: conn %p", __FUNCTION__, conn);
 }
 
 nsqdConn *new_nsqd_connection(struct ev_loop *loop, const char *address, int port,

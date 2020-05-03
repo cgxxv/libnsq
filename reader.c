@@ -4,7 +4,7 @@ static void nsq_reader_connect_cb(nsqdConn *conn, void *arg)
 {
     nsqReader *rdr = (nsqReader *)arg;
 
-    _DEBUG("%s: %p\n", __FUNCTION__, rdr);
+    _DEBUG("%s: %p", __FUNCTION__, rdr);
 
     if (rdr->connect_callback) {
         rdr->connect_callback(rdr, conn);
@@ -25,7 +25,7 @@ static void nsq_reader_msg_cb(nsqdConn *conn, nsqMsg *msg, void *arg)
 {
     nsqReader *rdr = (nsqReader *)arg;
 
-    _DEBUG("%s: %p %p\n", __FUNCTION__, msg, rdr);
+    _DEBUG("%s: %p %p", __FUNCTION__, msg, rdr);
 
     if (rdr->msg_callback) {
         msg->id[sizeof(msg->id)-1] = '\0';
@@ -37,7 +37,7 @@ static void nsq_reader_close_cb(nsqdConn *conn, void *arg)
 {
     nsqReader *rdr = (nsqReader *)arg;
 
-    _DEBUG("%s: %p\n", __FUNCTION__, rdr);
+    _DEBUG("%s: %p", __FUNCTION__, rdr);
 
     if (rdr->close_callback) {
         rdr->close_callback(rdr, conn);
@@ -61,7 +61,7 @@ static void nsq_reader_reconnect_cb(EV_P_ struct ev_timer *w, int revents)
     nsqReader *rdr = (nsqReader *)conn->arg;
 
     if (rdr->lookupd == NULL) {
-        _DEBUG("%s: There is no lookupd, try to reconnect to nsqd directly\n", __FUNCTION__);
+        _DEBUG("%s: There is no lookupd, try to reconnect to nsqd directly", __FUNCTION__);
         nsq_reader_connect_to_nsqd(rdr, conn->address, conn->port);
     }
 
@@ -84,7 +84,7 @@ static void nsq_reader_lookupd_poll_cb(EV_P_ struct ev_timer *w, int revents)
     }
     idx = rand() % count;
 
-    _DEBUG("%s: rdr %p (chose %d)\n", __FUNCTION__, rdr, idx);
+    _DEBUG("%s: rdr %p (chose %d)", __FUNCTION__, rdr, idx);
 
     i = 0;
     LL_FOREACH(rdr->lookupd, nsqlookupd_endpoint) {
@@ -208,6 +208,6 @@ int nsq_reader_connect_to_nsqd(nsqReader *rdr, const char *address, int port)
 
 void nsq_run(struct ev_loop *loop)
 {
-    srand(time(NULL));
+    srand((uint32_t)time(NULL));
     ev_loop(loop, 0);
 }

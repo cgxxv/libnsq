@@ -728,7 +728,7 @@ do {                                                                            
 
 
 #ifdef DEBUG
-#define _DEBUG(...) fprintf(stdout, __VA_ARGS__)
+#define _DEBUG(...) fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n")
 #else
 #define _DEBUG(...) do {;} while (0)
 #endif
