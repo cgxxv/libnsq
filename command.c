@@ -26,7 +26,7 @@ void *nsq_buf_malloc(size_t buf_size, size_t n, size_t l)
     return buf;
 }
 
-void nsq_buffer_add(nsqBuf *buf, const char *name, const nsqCmdParams params[], size_t psize, const char *body)
+void nsq_buffer_add(nsqBuf *buf, const char *name, const nsqCmdParams params[], size_t psize, const char *body, const size_t body_length)
 {
     size_t buf_size = MAX_BUF_SIZE;
     char *b = malloc(buf_size * sizeof(char));
@@ -35,13 +35,14 @@ void nsq_buffer_add(nsqBuf *buf, const char *name, const nsqCmdParams params[], 
     size_t n = 0;
     size_t l = 0;
 
-    l = sprintf(b, "%s", name);
+    l = strlen(name);
+    memcpy(b, name, l);
     n += l;
 
     if (NULL != params) {
         for (int i = 0; i < psize; i++) {
-            l = sprintf(b+n, "%s", NEW_SPACE);
-            n += l;
+            memcpy(b+n, NEW_SPACE, 1);
+            n += 1;
 
             switch (params[i].t) {
                 case NSQ_PARAM_TYPE_INT:
@@ -54,33 +55,31 @@ void nsq_buffer_add(nsqBuf *buf, const char *name, const nsqCmdParams params[], 
                         free(b);
                         b = nb;
                     }
-                    l = sprintf(b+n, "%s", (char *)params[i].v);
+                    l = strlen((char *)params[i].v);
+                    memcpy(b+n, (char *)params[i].v, l);
                     break;
             }
             n += l;
         }
     }
-    l = sprintf(b+n, "%s", NEW_LINE);
-    n += l;
+    memcpy(b+n, NEW_LINE, 1);
+    n += 1;
 
     if (NULL != body) {
-        char byte[4] = "\0";
-        uint32_t v = sizeof(body);
-        byte[0] = (uint8_t)v >> 24;
-        byte[1] = (uint8_t)v >> 16;
-        byte[2] = (uint8_t)v >> 8;
-        byte[3] = (uint8_t)v;
-        l = sprintf(b+n, "%s", byte);
-        n += l;
+        //convert to big endian
+        uint32_t v = (uint32_t)body_length;
+        uint32_t vv = (v & 0x000000ff) << 24 | (v & 0x0000ff00) << 16 | (v & 0x00ff0000) << 8 | (v & 0xff000000);
+        memcpy(b+n, &vv, 4);
+        n += 4;
 
-        nb = nsq_buf_malloc(buf_size, n, strlen(body));
+        nb = nsq_buf_malloc(buf_size, n, body_length);
         if (NULL != nb) {
             memcpy(nb, b, n);
             free(b);
             b = nb;
         }
-        l = sprintf(b+n, "%s", body);
-        n += l;
+        memcpy(b+n, body, body_length);
+        n += body_length;
     }
     
     buffer_add(buf, b, n);
@@ -93,7 +92,7 @@ void nsq_subscribe(nsqBuf *buf, const char *topic, const char *channel)
         {(void *)topic, NSQ_PARAM_TYPE_CHAR},
         {(void *)channel, NSQ_PARAM_TYPE_CHAR},
     };
-    nsq_buffer_add(buf, name, params, 2, NULL);
+    nsq_buffer_add(buf, name, params, 2, NULL, 0);
 }
 
 void nsq_ready(nsqBuf *buf, int count)
@@ -102,7 +101,7 @@ void nsq_ready(nsqBuf *buf, int count)
     const nsqCmdParams params[1] = {
         {&count, NSQ_PARAM_TYPE_INT},
     };
-    nsq_buffer_add(buf, name, params, 1, NULL);
+    nsq_buffer_add(buf, name, params, 1, NULL, 0);
 }
 
 void nsq_finish(nsqBuf *buf, const char *id)
@@ -111,7 +110,7 @@ void nsq_finish(nsqBuf *buf, const char *id)
     const nsqCmdParams params[1] = {
         {(void *)id, NSQ_PARAM_TYPE_CHAR},
     };
-    nsq_buffer_add(buf, name, params, 1, NULL);
+    nsq_buffer_add(buf, name, params, 1, NULL, 0);
 }
 
 void nsq_requeue(nsqBuf *buf, const char *id, int timeout_ms)
@@ -121,12 +120,12 @@ void nsq_requeue(nsqBuf *buf, const char *id, int timeout_ms)
         {(void *)id, NSQ_PARAM_TYPE_CHAR},
         {&timeout_ms, NSQ_PARAM_TYPE_INT},
     };
-    nsq_buffer_add(buf, name, params, 2, NULL);
+    nsq_buffer_add(buf, name, params, 2, NULL, 0);
 }
 
 void nsq_nop(nsqBuf *buf)
 {
-    nsq_buffer_add(buf, "NOP", NULL, 0, NULL);
+    nsq_buffer_add(buf, "NOP", NULL, 0, NULL, 0);
 }
 
 void nsq_publish(nsqBuf *buf, const char *topic, const char *body)
@@ -135,55 +134,53 @@ void nsq_publish(nsqBuf *buf, const char *topic, const char *body)
     const nsqCmdParams params[1] = {
         {(void *)topic, NSQ_PARAM_TYPE_CHAR},
     };
-    nsq_buffer_add(buf, name, params, 1, body);
+    nsq_buffer_add(buf, name, params, 1, body, strlen(body));
 }
 
-void nsq_mpublish(nsqBuf *buf, const char *topic, const char **body, const size_t bs)
-{
-    const char *name = "MPUB";
-    const nsqCmdParams params[1] = {
-        {(void *)topic, NSQ_PARAM_TYPE_CHAR},
-    };
-
-    size_t v = 4;
-    for (int i = 0; i<bs; i++) {
-        v += strlen(body[i])+4;
-    }
-    char *b = malloc(v * sizeof(char));
-    assert(NULL != b);
-    
-    uint32_t n = sizeof(body)/sizeof(*body);
-
-    char nbyte[4] = "\0";
-    nbyte[0] = (uint8_t)n >> 24;
-    nbyte[1] = (uint8_t)n >> 16;
-    nbyte[2] = (uint8_t)n >> 8;
-    nbyte[3] = (uint8_t)n;
-    memcpy(b, nbyte, 4);
-
-    size_t l = 0;
-    for (int i = 0; i < n; i++) {
-        l = strlen(body[i]);
-        char byte[4] = "\0";
-        byte[0] = (uint8_t)((int32_t)l >> 24);
-        byte[1] = (uint8_t)((int32_t)l >> 16);
-        byte[2] = (uint8_t)((int32_t)l >> 8);
-        byte[3] = (uint8_t)((int32_t)l);
-        memcpy(b+4, byte, 4);
-        memcpy(b+4, body[i], l);
-    }
-
-    nsq_buffer_add(buf, name, params, 1, b);
-}
-
-void nsq_dpublish(nsqBuf *buf, const char *topic, const char *body, int defer_time_sec)
+void nsq_defer_publish(nsqBuf *buf, const char *topic, const char *body, int defer_time_sec)
 {
     const char *name = "DPUB";
     const nsqCmdParams params[2] = {
         {(void *)topic, NSQ_PARAM_TYPE_CHAR},
         {&defer_time_sec, NSQ_PARAM_TYPE_INT},
     };
-    nsq_buffer_add(buf, name, params, 2, body);
+    nsq_buffer_add(buf, name, params, 2, body, strlen(body));
+}
+
+void nsq_multi_publish(nsqBuf *buf, const char *topic, const char **body, const size_t body_size)
+{
+    const char *name = "MPUB";
+    const nsqCmdParams params[1] = {
+        {(void *)topic, NSQ_PARAM_TYPE_CHAR},
+    };
+
+    size_t s = 4;
+    for (int i = 0; i<body_size; i++) {
+        s += strlen(body[i])+4;
+    }
+    char *b = malloc(s * sizeof(char));
+    assert(NULL != b);
+
+    size_t n = 0;
+    uint32_t v = (uint32_t)body_size;
+    v = (v & 0x000000ff) << 24 | (v & 0x0000ff00) << 16 | (v & 0x00ff0000) << 8 | (v & 0xff000000);
+    memcpy(b+n, &v, 4);
+    n += 4;
+
+    size_t l = 0;
+    for (int i = 0; i < body_size; i++) {
+        l = strlen(body[i]);
+        v = (uint32_t)l;
+        v = (v & 0x000000ff) << 24 | (v & 0x0000ff00) << 16 | (v & 0x00ff0000) << 8 | (v & 0xff000000);
+        memcpy(b+n, &v, 4);
+        n += 4;
+
+        l = strlen(body[i]);
+        memcpy(b+n, body[i], l);
+        n += l;
+    }
+
+    nsq_buffer_add(buf, name, params, 1, b, s);
 }
 
 void nsq_touch(nsqBuf *buf, const char *id)
@@ -192,24 +189,24 @@ void nsq_touch(nsqBuf *buf, const char *id)
     const nsqCmdParams params[1] = {
         {(void *)id, NSQ_PARAM_TYPE_CHAR},
     };
-    nsq_buffer_add(buf, name, params, 1, NULL);
+    nsq_buffer_add(buf, name, params, 1, NULL, 0);
 }
 
 void nsq_cleanly_close_connection(nsqBuf *buf)
 {
     const char *name = "CLS";
-    nsq_buffer_add(buf, name, NULL, 0, NULL);
+    nsq_buffer_add(buf, name, NULL, 0, NULL, 0);
 }
 
 void nsq_auth(nsqBuf *buf, const char *secret)
 {
     const char *name = "AUTH";
-    nsq_buffer_add(buf, name, NULL, 0, secret);
+    nsq_buffer_add(buf, name, NULL, 0, secret, strlen(secret));
 }
 
 //TODO: should handle object to json string
 void nsq_identify(nsqBuf *buf, const char *json_body)
 {
     const char *name = "IDENTIFY";
-    nsq_buffer_add(buf, name, NULL, 1, json_body);
+    nsq_buffer_add(buf, name, NULL, 1, json_body, strlen(json_body));
 }

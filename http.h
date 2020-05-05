@@ -6,7 +6,7 @@
 typedef struct HttpClient {
     CURLM *multi;
     struct ev_loop *loop;
-    struct ev_timer *timer_event;
+    struct ev_timer timer_event;
     int still_running;
 } httpClient;
 

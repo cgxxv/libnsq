@@ -4,10 +4,12 @@
 #define DEFAULT_LOOKUPD_INTERVAL     5.
 #define DEFAULT_COMMAND_BUF_LEN      4096
 #define DEFAULT_COMMAND_BUF_CAPACITY 4096
+#define DEFAULT_READ_BUF_LEN_PER     4096
 #define DEFAULT_READ_BUF_LEN         16 * 1024
 #define DEFAULT_READ_BUF_CAPACITY    16 * 1024
 #define DEFAULT_WRITE_BUF_LEN        16 * 1024
 #define DEFAULT_WRITE_BUF_CAPACITY   16 * 1024
+#define NSQ_PROTOCOL_MAGIC_BUF       "  V2"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -15,7 +17,12 @@
 #include <time.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
+#include <unistd.h>
 #include <curl/curl.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/fcntl.h>
 #include <ev.h>
 
 #include "libevbuffsock/evbuffsock.h"
@@ -48,6 +55,18 @@ typedef struct NSQLookupdEndpoint {
 nsqLookupdEndpoint *new_nsqlookupd_endpoint(const char *address, int port);
 void free_nsqlookupd_endpoint(nsqLookupdEndpoint *nsqlookupd_endpoint);
 
+typedef struct NSQRWCfg {
+    ev_tstamp lookupd_interval;
+    size_t command_buf_len;
+    size_t command_buf_capacity;
+    size_t read_buf_len;
+    size_t read_buf_capacity;
+    size_t write_buf_len;
+    size_t write_buf_capacity;
+} nsqRWCfg;
+
+nsqRWCfg *new_nsq_rw_cfg();
+
 typedef struct NSQDConnection {
     char *address;
     int port;
@@ -69,22 +88,14 @@ nsqdConn *new_nsqd_connection(struct ev_loop *loop, const char *address, int por
     void (*connect_callback)(nsqdConn *conn, void *arg),
     void (*close_callback)(nsqdConn *conn, void *arg),
     void (*msg_callback)(nsqdConn *conn, nsqMsg *msg, void *arg),
-    void *arg);
+    nsqRWCfg *cfg, void *arg);
 void free_nsqd_connection(nsqdConn *conn);
 int nsqd_connection_connect(nsqdConn *conn);
+size_t nsqd_connection_read_buffer(nsqBufdSock *buffsock, nsqdConn *conn);
+int nsqd_connection_connect_socket(nsqdConn *conn);
 void nsqd_connection_disconnect(nsqdConn *conn);
 void nsqd_connection_init_timer(nsqdConn *conn, void (*reconnect_callback)(EV_P_ ev_timer *w, int revents));
 void nsqd_connection_stop_timer(nsqdConn *conn);
-
-typedef struct NSQRWCfg {
-    ev_tstamp lookupd_interval;
-    size_t command_buf_len;
-    size_t command_buf_capacity;
-    size_t read_buf_len;
-    size_t read_buf_capacity;
-    size_t write_buf_len;
-    size_t write_buf_capacity;
-} nsqRWCfg;
 
 typedef struct NSQReader {
     char *topic;
@@ -115,21 +126,42 @@ int nsq_reader_add_nsqlookupd_endpoint(nsqReader *rdr, const char *address, int 
 void nsq_reader_set_loop(nsqReader *rdr, struct ev_loop *loop);
 void nsq_run(struct ev_loop *loop);
 
+typedef struct NSQWriter {
+    char *topic;
+    void *ctx;
+    nsqdConn *conns;
+    struct NSQDConnInfo *infos;
+    nsqLookupdEndpoint *lookupd;
+    struct ev_loop *loop;
+    nsqRWCfg *cfg;
+    void *httpc;
+} nsqWriter;
+
+nsqWriter *new_nsq_writer(struct ev_loop *loop, const char *topic, void *ctx, nsqRWCfg *cfg);
+void free_nsq_writer(nsqWriter *writer);
+void nsq_writer_close(nsqdConn *conn, nsqWriter *writer);
+int nsq_writer_connect_to_nsqd(nsqWriter *writer, const char *address, int port);
+int nsq_writer_connect_to_nsqlookupd(nsqWriter *writer);
+int nsq_writer_add_nsqlookupd_endpoint(nsqWriter *writer, const char *address, int port);
+void nsq_write_msg_to_nsqd(nsqWriter *writer, const char *body);
+void nsq_write_defered_msg_to_nsqd(nsqWriter *writer, const char *body, int defer_time_sec);
+void nsq_write_multiple_msg_to_nsqd(nsqWriter *writer, const char **body, const int body_size);
+
 typedef struct NSQCmdParams {
     void *v;
     int t;
 } nsqCmdParams;
 
 void *nsq_buf_malloc(size_t buf_size, size_t n, size_t l);
-void nsq_buffer_add(nsqBuf *buf, const char *name, const nsqCmdParams params[], size_t psize, const char *body);
+void nsq_buffer_add(nsqBuf *buf, const char *name, const nsqCmdParams params[], size_t psize, const char *body, const size_t body_length);
 void nsq_subscribe(nsqBuf *buf, const char *topic, const char *channel);
 void nsq_ready(nsqBuf *buf, int count);
 void nsq_finish(nsqBuf *buf, const char *id);
 void nsq_requeue(nsqBuf *buf, const char *id, int timeout_ms);
 void nsq_nop(nsqBuf *buf);
 void nsq_publish(nsqBuf *buf, const char *topic, const char *body);
-void nsq_mpublish(nsqBuf *buf, const char *topic, const char **body, const size_t bs);
-void nsq_dpublish(nsqBuf *buf, const char *topic, const char *body, int defer_time_sec);
+void nsq_defer_publish(nsqBuf *buf, const char *topic, const char *body, int defer_time_sec);
+void nsq_multi_publish(nsqBuf *buf, const char *topic, const char **body, const size_t body_size);
 void nsq_touch(nsqBuf *buf, const char *id);
 void nsq_cleanly_close_connection(nsqBuf *buf);
 void nsq_auth(nsqBuf *buf, const char *secret);

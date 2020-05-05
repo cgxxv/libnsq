@@ -110,24 +110,7 @@ nsqReader *new_nsq_reader(struct ev_loop *loop, const char *topic, const char *c
     nsqReader *rdr;
 
     rdr = (nsqReader *)malloc(sizeof(nsqReader));
-    rdr->cfg = (nsqRWCfg *)malloc(sizeof(nsqRWCfg));
-    if (cfg == NULL) {
-        rdr->cfg->lookupd_interval     = DEFAULT_LOOKUPD_INTERVAL;
-        rdr->cfg->command_buf_len      = DEFAULT_COMMAND_BUF_LEN;
-        rdr->cfg->command_buf_capacity = DEFAULT_COMMAND_BUF_CAPACITY;
-        rdr->cfg->read_buf_len         = DEFAULT_READ_BUF_LEN;
-        rdr->cfg->read_buf_capacity    = DEFAULT_READ_BUF_CAPACITY;
-        rdr->cfg->write_buf_len        = DEFAULT_WRITE_BUF_LEN;
-        rdr->cfg->write_buf_capacity   = DEFAULT_WRITE_BUF_CAPACITY;
-    } else {
-        rdr->cfg->lookupd_interval     = cfg->lookupd_interval     <= 0 ? DEFAULT_LOOKUPD_INTERVAL     : cfg->lookupd_interval;
-        rdr->cfg->command_buf_len      = cfg->command_buf_len      <= 0 ? DEFAULT_COMMAND_BUF_LEN      : cfg->command_buf_len;
-        rdr->cfg->command_buf_capacity = cfg->command_buf_capacity <= 0 ? DEFAULT_COMMAND_BUF_CAPACITY : cfg->command_buf_capacity;
-        rdr->cfg->read_buf_len         = cfg->read_buf_len         <= 0 ? DEFAULT_READ_BUF_LEN         : cfg->read_buf_len;
-        rdr->cfg->read_buf_capacity    = cfg->read_buf_capacity    <= 0 ? DEFAULT_READ_BUF_CAPACITY    : cfg->read_buf_capacity;
-        rdr->cfg->write_buf_len        = cfg->write_buf_len        <= 0 ? DEFAULT_WRITE_BUF_LEN        : cfg->write_buf_len;
-        rdr->cfg->write_buf_capacity   = cfg->write_buf_capacity   <= 0 ? DEFAULT_WRITE_BUF_CAPACITY   : cfg->write_buf_capacity;
-    }
+    rdr->cfg = new_nsq_rw_cfg();
     rdr->topic = strdup(topic);
     rdr->channel = strdup(channel);
     rdr->max_in_flight = 1;
@@ -193,7 +176,7 @@ int nsq_reader_connect_to_nsqd(nsqReader *rdr, const char *address, int port)
     int rc;
 
     conn = new_nsqd_connection(rdr->loop, address, port,
-        nsq_reader_connect_cb, nsq_reader_close_cb, nsq_reader_msg_cb, rdr);
+        nsq_reader_connect_cb, nsq_reader_close_cb, nsq_reader_msg_cb, rdr->cfg, rdr);
     rc = nsqd_connection_connect(conn);
     if (rc > 0) {
         LL_APPEND(rdr->conns, conn);
