@@ -23,7 +23,7 @@ void free_nsq_writer(nsqWriter *writer)
     
     if (writer) {
         LL_FOREACH(writer->conns, conn) {
-            nsqd_connection_disconnect(conn);
+            nsqd_connection_disconnect_socket(conn->bs);
         }
         LL_FOREACH(writer->lookupd, nsqlookupd_endpoint) {
             free_nsqlookupd_endpoint(nsqlookupd_endpoint);

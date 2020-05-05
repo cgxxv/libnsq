@@ -1,7 +1,10 @@
 libnsq.a
 test
-test-nsqd
-test-lookupd
+test-lookupd-pub
+test-lookupd-sub
+test-nsqd-pub
+test-nsqd-sub
 *.o
 *.dSYM
 .DS_Store
+

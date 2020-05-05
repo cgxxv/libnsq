@@ -271,8 +271,27 @@ int nsqd_connection_connect_socket(nsqdConn *conn)
         _DEBUG("%s: write magic error", __FUNCTION__);
         return 0;
     }
+    
+    buffsock->state = BS_CONNECTED;
 
     return buffsock->fd;
+}
+
+void nsqd_connection_disconnect_socket(nsqBufdSock *buffsock)
+{
+    if (buffsock->state == BS_DISCONNECTED) {
+        return;
+    }
+
+    _DEBUG("%s: closing \"%s:%d\" on %d",
+           __FUNCTION__, buffsock->address, buffsock->port, buffsock->fd);
+
+    if (buffsock->fd != -1) {
+        close(buffsock->fd);
+        buffsock->fd = -1;
+    }
+
+    buffsock->state = BS_DISCONNECTED;
 }
 
 void nsqd_connection_disconnect(nsqdConn *conn)
