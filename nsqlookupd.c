@@ -3,7 +3,7 @@
 void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
 {
     nsqReader *rdr = (nsqReader *)arg;
-    nsq_json_t *jsobj, *data, *producers, *producer, *broadcast_address_obj, *tcp_port_obj;
+    nsq_json_t *jsobj, *producers, *producer, *broadcast_address_obj, *tcp_port_obj;
     nsq_json_tokener_t *jstok;
     nsqdConn *conn;
     const char *broadcast_address;
@@ -26,14 +26,7 @@ void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
         return;
     }
 
-    nsq_json_object_get(jsobj, "data", &data);
-    if (!data) {
-        _DEBUG("%s: error getting 'data' key", __FUNCTION__);
-        nsq_json_decref(jsobj);
-        nsq_json_tokener_free(jstok);
-        return;
-    }
-    nsq_json_object_get(data, "producers", &producers);
+    nsq_json_object_get(jsobj, "producers", &producers);
     if (!producers) {
         _DEBUG("%s: error getting 'producers' key", __FUNCTION__);
         nsq_json_decref(jsobj);

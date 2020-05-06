@@ -31,6 +31,8 @@ void free_nsq_writer(nsqWriter *writer)
         
         free(writer->topic);
         free(writer->cfg);
+        free(writer->httpc->timer_event);
+        free(writer->httpc);
         free(writer);
     }
 }

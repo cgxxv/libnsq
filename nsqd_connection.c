@@ -90,8 +90,9 @@ static void nsqd_connection_read_data(nsqBufdSock *buffsock, void *arg)
                 buffer_reset(conn->command_buf);
                 nsq_nop(conn->command_buf);
                 buffered_socket_write_buffer(conn->bs, conn->command_buf);
+            } else {
+                printf("\033[32m%s:%d response = %s\033[0m\n", __FILE__, __LINE__, conn->current_data);
             }
-            _DEBUG("%s: response = %s", __FUNCTION__, conn->current_data);
             break;
         case NSQ_FRAME_TYPE_MESSAGE:
             msg = nsq_decode_message(conn->current_data, conn->current_msg_size);
@@ -100,8 +101,7 @@ static void nsqd_connection_read_data(nsqBufdSock *buffsock, void *arg)
             }
             break;
         case NSQ_FRAME_TYPE_ERROR:
-            _DEBUG("Error: %s", conn->current_data);
-            _DEBUG("%s: %s, error", __FUNCTION__, conn->current_data);
+            printf("\033[31m%s:%d error (%s)\033[0m\n", __FILE__, __LINE__, conn->current_data);
             break;
     }
 
@@ -207,11 +207,10 @@ size_t nsqd_connection_read_buffer(nsqBufdSock *buffsock, nsqdConn *conn)
 
     switch (conn->current_frame_type) {
         case NSQ_FRAME_TYPE_RESPONSE:
-            _DEBUG("%s: response = %s", __FUNCTION__, conn->current_data);
+            printf("\033[32m%s:%d response = %s\033[0m\n", __FILE__, __LINE__, conn->current_data);
             break;
         case NSQ_FRAME_TYPE_ERROR:
-            _DEBUG("Error: %s", conn->current_data);
-            _DEBUG("%s: %s, error", __FUNCTION__, conn->current_data);
+            printf("\033[31m%s:%d error (%s)\033[0m\n", __FILE__, __LINE__, conn->current_data);
             break;
     }
 

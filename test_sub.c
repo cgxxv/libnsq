@@ -2,7 +2,7 @@
 
 static void message_handler(nsqReader *rdr, nsqdConn *conn, nsqMsg *msg, void *ctx)
 {
-    _DEBUG("%s: %ld, %d, %s, %lu, %.*s", __FUNCTION__, msg->timestamp, msg->attempts,
+    printf("\033[32m%s: %ld, %d, %s, %lu, %.*s\033[0m\n", __FUNCTION__, msg->timestamp, msg->attempts,
            msg->id, msg->body_length, (int)msg->body_length, msg->body);
     int ret = 0;
     //TestNsqMsgContext * test_ctx = (TestNsqMsgContext *)ctx;

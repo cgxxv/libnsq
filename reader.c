@@ -53,8 +53,6 @@ static void nsq_reader_close_cb(nsqdConn *conn, void *arg)
     }
 }
 
-void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg);
-
 static void nsq_reader_reconnect_cb(EV_P_ struct ev_timer *w, int revents)
 {
     nsqdConn *conn = (nsqdConn *)w->data;
@@ -73,7 +71,7 @@ static void nsq_reader_lookupd_poll_cb(EV_P_ struct ev_timer *w, int revents)
     nsqReader *rdr = (nsqReader *)w->data;
     nsqLookupdEndpoint *nsqlookupd_endpoint;
     httpRequest *req;
-    int i, idx, count = 0;
+    int i = 0, idx, count = 0;
     char buf[256];
 
     LL_FOREACH(rdr->lookupd, nsqlookupd_endpoint) {
@@ -86,13 +84,12 @@ static void nsq_reader_lookupd_poll_cb(EV_P_ struct ev_timer *w, int revents)
 
     _DEBUG("%s: rdr %p (chose %d)", __FUNCTION__, rdr, idx);
 
-    i = 0;
     LL_FOREACH(rdr->lookupd, nsqlookupd_endpoint) {
-        if (i++ == idx) {
+        if (i == idx) {
             sprintf(buf, "http://%s:%d/lookup?topic=%s", nsqlookupd_endpoint->address,
                 nsqlookupd_endpoint->port, rdr->topic);
             req = new_http_request(buf, nsq_lookupd_request_cb, rdr);
-            http_client_get((struct HttpClient *)rdr->httpc, req);
+            http_client_get(rdr->httpc, req);
             break;
         }
     }
@@ -121,6 +118,7 @@ nsqReader *new_nsq_reader(struct ev_loop *loop, const char *topic, const char *c
     rdr->conns = NULL;
     rdr->lookupd = NULL;
     rdr->loop = loop;
+    rdr->lookupd_poll_timer = malloc(sizeof(struct ev_timer));
 
     rdr->httpc = new_http_client(rdr->loop);
 
@@ -144,6 +142,9 @@ void free_nsq_reader(nsqReader *rdr)
         free(rdr->topic);
         free(rdr->channel);
         free(rdr->cfg);
+        free(rdr->lookupd_poll_timer);
+        free(rdr->httpc->timer_event);
+        free(rdr->httpc);
         free(rdr);
     }
 }

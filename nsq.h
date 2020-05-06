@@ -52,6 +52,7 @@ typedef struct NSQLookupdEndpoint {
     struct NSQLookupdEndpoint *next;
 } nsqLookupdEndpoint;
 
+void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg);
 nsqLookupdEndpoint *new_nsqlookupd_endpoint(const char *address, int port);
 void free_nsqlookupd_endpoint(nsqLookupdEndpoint *nsqlookupd_endpoint);
 
@@ -109,7 +110,7 @@ typedef struct NSQReader {
     struct ev_timer *lookupd_poll_timer;
     struct ev_loop *loop;
     nsqRWCfg *cfg;
-    void *httpc;
+    httpClient *httpc;
     void (*connect_callback)(struct NSQReader *rdr, nsqdConn *conn);
     void (*close_callback)(struct NSQReader *rdr, nsqdConn *conn);
     void (*msg_callback)(struct NSQReader *rdr, nsqdConn *conn, nsqMsg *msg, void *ctx);
@@ -135,7 +136,7 @@ typedef struct NSQWriter {
     nsqLookupdEndpoint *lookupd;
     struct ev_loop *loop;
     nsqRWCfg *cfg;
-    void *httpc;
+    httpClient *httpc;
 } nsqWriter;
 
 nsqWriter *new_nsq_writer(struct ev_loop *loop, const char *topic, void *ctx, nsqRWCfg *cfg);
