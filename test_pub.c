@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 #ifdef NSQD_STANDALONE
     nsq_writer_connect_to_nsqd(writer, argv[1], 4150);
 #else
-    nsq_writer_add_nsqlookupd_endpoint(writer, argv[1], 4160);
+    nsq_writer_add_nsqlookupd_endpoint(writer, argv[1], 4161);
 #endif
 
     nsq_write_msg_to_nsqd(writer, "Hello, I am in the official libnsq");

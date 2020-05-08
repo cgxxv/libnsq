@@ -1,5 +1,37 @@
 #include "nsq.h"
 
+void nsq_writer_loop_producers(nsq_json_t *producers, nsqWriter *writer)
+{
+    nsqdConn *conn;
+    nsq_json_t *producer, *broadcast_address_obj, *tcp_port_obj;
+    const char *broadcast_address;
+    int i, found, tcp_port;
+
+    for (i = 0; i < nsq_json_array_length(producers); i++) {
+        producer = nsq_json_array_get(producers, i);
+        nsq_json_object_get(producer, "broadcast_address", &broadcast_address_obj);
+        nsq_json_object_get(producer, "tcp_port", &tcp_port_obj);
+
+        broadcast_address = nsq_json_string_value(broadcast_address_obj);
+        tcp_port = nsq_json_int_value(tcp_port_obj);
+
+        _DEBUG("%s: broadcast_address %s, port %d", __FUNCTION__, broadcast_address, tcp_port);
+
+        found = 0;
+        LL_FOREACH(writer->conns, conn) {
+            if (strcmp(conn->bs->address, broadcast_address) == 0
+                && conn->bs->port == tcp_port) {
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found) {
+            nsq_writer_connect_to_nsqd(writer, broadcast_address, tcp_port);
+        }
+    }
+}
+
 nsqWriter *new_nsq_writer(struct ev_loop *loop, const char *topic, void *ctx, nsqRWCfg *cfg)
 {
     nsqWriter *writer = malloc(sizeof(nsqWriter));
@@ -75,34 +107,40 @@ int nsq_writer_connect_to_nsqd(nsqWriter *writer, const char *address, int port)
     if (rc > 0) {
         LL_APPEND(writer->conns, conn);
     }
-    
-//    if (writer->lookupd == NULL) {
-//        nsqd_connection_init_timer(conn, nsq_writer_reconnect_cb);
-//    }
 
     return rc;
 }
 
-int nsq_writer_connect_to_nsqlookupd(nsqWriter *writer);
+static int nsq_writer_connect_lookupd(nsqWriter *writer)
+{
+    nsqLookupdEndpoint *nsqlookupd_endpoint;
+    int count = 0, idx = -1;
+
+    LL_FOREACH(writer->lookupd, nsqlookupd_endpoint) {
+        count++;
+    }
+    if(count == 0) {
+        return 0;
+    }
+
+    idx = nsq_lookupd_connect_producer(writer->lookupd, count, writer->topic, writer->httpc, writer, NSQ_LOOKUPD_MODE_WRITE);
+
+    _DEBUG("%s: writer %p, lookupd count (%d), connected the (%d) nsqlookupd", __FUNCTION__, writer, count, idx);
+
+    return idx;
+}
 
 int nsq_writer_add_nsqlookupd_endpoint(nsqWriter *writer, const char *address, int port)
 {
     nsqLookupdEndpoint *nsqlookupd_endpoint;
-    nsqdConn *conn;
-
-    if (writer->lookupd == NULL) {
-        // Stop reconnect timers, use lookupd timer instead
-        LL_FOREACH(writer->conns, conn) {
-            nsqd_connection_stop_timer(conn);
-        }
-
-//        ev_timer_init(rdr->lookupd_poll_timer, nsq_reader_lookupd_poll_cb, 0., rdr->cfg->lookupd_interval);
-//        rdr->lookupd_poll_timer->data = rdr;
-//        ev_timer_again(rdr->loop, rdr->lookupd_poll_timer);
-    }
+    int idx = -1;
 
     nsqlookupd_endpoint = new_nsqlookupd_endpoint(address, port);
     LL_APPEND(writer->lookupd, nsqlookupd_endpoint);
+
+    idx = nsq_writer_connect_lookupd(writer);
+
+    _DEBUG("%s:%d connected the (%d) nsqlookupd", __FILE__, __LINE__, idx);
 
     return 1;
 }

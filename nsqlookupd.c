@@ -1,13 +1,34 @@
 #include "nsq.h"
 
-void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
+int nsq_lookupd_connect_producer(nsqLookupdEndpoint *lookupd, const int count, const char *topic,
+    httpClient *httpc, void *arg, int mode)
 {
-    nsqReader *rdr = (nsqReader *)arg;
-    nsq_json_t *jsobj, *producers, *producer, *broadcast_address_obj, *tcp_port_obj;
+    nsqLookupdEndpoint *nsqlookupd_endpoint;
+    httpRequest *req;
+    int i = 0, idx;
+    char buf[256];
+
+    idx = rand() % count;
+
+    _DEBUG("%s: lookupd %p (chose %d), topic %s, httpClient %p", __FUNCTION__, lookupd, idx, topic, httpc);
+
+    LL_FOREACH(lookupd, nsqlookupd_endpoint) {
+        if (i == idx) {
+            sprintf(buf, "http://%s:%d/lookup?topic=%s", nsqlookupd_endpoint->address,
+                nsqlookupd_endpoint->port, topic);
+            req = new_http_request(buf, nsq_lookupd_request_cb, arg);
+            http_client_get(httpc, req);
+            break;
+        }
+    }
+    
+    return idx;
+}
+
+void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg, int mode)
+{
+    nsq_json_t *jsobj, *producers;
     nsq_json_tokener_t *jstok;
-    nsqdConn *conn;
-    const char *broadcast_address;
-    int i, found, tcp_port;
 
     _DEBUG("%s: status_code %d, body %.*s", __FUNCTION__, resp->status_code,
         (int)BUFFER_HAS_DATA(resp->data), resp->data->data);
@@ -35,28 +56,10 @@ void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
     }
 
     _DEBUG("%s: num producers %ld", __FUNCTION__, (long)nsq_json_array_length(producers));
-    for (i = 0; i < nsq_json_array_length(producers); i++) {
-        producer = nsq_json_array_get(producers, i);
-        nsq_json_object_get(producer, "broadcast_address", &broadcast_address_obj);
-        nsq_json_object_get(producer, "tcp_port", &tcp_port_obj);
-
-        broadcast_address = nsq_json_string_value(broadcast_address_obj);
-        tcp_port = nsq_json_int_value(tcp_port_obj);
-
-        _DEBUG("%s: broadcast_address %s, port %d", __FUNCTION__, broadcast_address, tcp_port);
-
-        found = 0;
-        LL_FOREACH(rdr->conns, conn) {
-            if (strcmp(conn->bs->address, broadcast_address) == 0
-                && conn->bs->port == tcp_port) {
-                found = 1;
-                break;
-            }
-        }
-
-        if (!found) {
-            nsq_reader_connect_to_nsqd(rdr, broadcast_address, tcp_port);
-        }
+    if (mode == NSQ_LOOKUPD_MODE_READ) {
+        nsq_reader_loop_producers(producers, (nsqReader *)arg);
+    } else if (mode == NSQ_LOOKUPD_MODE_WRITE) {
+        nsq_reader_loop_producers(producers, (nsqWriter *)arg);
     }
 
     nsq_json_decref(jsobj);

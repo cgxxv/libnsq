@@ -7,6 +7,9 @@ case $2 in
     "sub")
     ./test-nsqd-sub $1 sample_topic ch
     ;;
+    "lookupd-pub")
+    ./test-lookupd-pub $1 sample_topic
+    ;;
     "lookupd-sub")
     ./test-lookupd-sub $1 sample_topic ch
     ;;

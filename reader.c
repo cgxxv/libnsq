@@ -70,9 +70,7 @@ static void nsq_reader_lookupd_poll_cb(EV_P_ struct ev_timer *w, int revents)
 {
     nsqReader *rdr = (nsqReader *)w->data;
     nsqLookupdEndpoint *nsqlookupd_endpoint;
-    httpRequest *req;
-    int i = 0, idx, count = 0;
-    char buf[256];
+    int count = 0, idx = -1;
 
     LL_FOREACH(rdr->lookupd, nsqlookupd_endpoint) {
         count++;
@@ -80,22 +78,45 @@ static void nsq_reader_lookupd_poll_cb(EV_P_ struct ev_timer *w, int revents)
     if(count == 0) {
         goto end;
     }
-    idx = rand() % count;
+    
+    idx = nsq_lookupd_connect_producer(rdr->lookupd, count, rdr->topic, rdr->httpc, rdr, NSQ_LOOKUPD_MODE_READ);
 
-    _DEBUG("%s: rdr %p (chose %d)", __FUNCTION__, rdr, idx);
-
-    LL_FOREACH(rdr->lookupd, nsqlookupd_endpoint) {
-        if (i == idx) {
-            sprintf(buf, "http://%s:%d/lookup?topic=%s", nsqlookupd_endpoint->address,
-                nsqlookupd_endpoint->port, rdr->topic);
-            req = new_http_request(buf, nsq_lookupd_request_cb, rdr);
-            http_client_get(rdr->httpc, req);
-            break;
-        }
-    }
+    _DEBUG("%s: rdr %p, lookupd count (%d), connected the (%d) nsqlookupd", __FUNCTION__, rdr, count, idx);
 
 end:
     ev_timer_again(rdr->loop, rdr->lookupd_poll_timer);
+}
+
+void nsq_reader_loop_producers(nsq_json_t *producers, nsqReader *rdr)
+{
+    nsqdConn *conn;
+    nsq_json_t *producer, *broadcast_address_obj, *tcp_port_obj;
+    const char *broadcast_address;
+    int i, found, tcp_port;
+
+    for (i = 0; i < nsq_json_array_length(producers); i++) {
+        producer = nsq_json_array_get(producers, i);
+        nsq_json_object_get(producer, "broadcast_address", &broadcast_address_obj);
+        nsq_json_object_get(producer, "tcp_port", &tcp_port_obj);
+
+        broadcast_address = nsq_json_string_value(broadcast_address_obj);
+        tcp_port = nsq_json_int_value(tcp_port_obj);
+
+        _DEBUG("%s: broadcast_address %s, port %d", __FUNCTION__, broadcast_address, tcp_port);
+
+        found = 0;
+        LL_FOREACH(rdr->conns, conn) {
+            if (strcmp(conn->bs->address, broadcast_address) == 0
+                && conn->bs->port == tcp_port) {
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found) {
+            nsq_reader_connect_to_nsqd(rdr, broadcast_address, tcp_port);
+        }
+    }
 }
 
 nsqReader *new_nsq_reader(struct ev_loop *loop, const char *topic, const char *channel, void *ctx,

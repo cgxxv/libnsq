@@ -31,7 +31,8 @@
 #include "json.h"
 
 typedef enum {NSQ_FRAME_TYPE_RESPONSE, NSQ_FRAME_TYPE_ERROR, NSQ_FRAME_TYPE_MESSAGE} frame_type;
-typedef enum {NSQ_PARAM_TYPE_INT, NSQ_PARAM_TYPE_CHAR} nsq_cmd_param_type;
+typedef enum {NSQ_PARAM_TYPE_INT, NSQ_PARAM_TYPE_CHAR} nsqCmdParamType;
+typedef enum {NSQ_LOOKUPD_MODE_READ, NSQ_LOOKUPD_MODE_WRITE} nsqLookupdMode;
 typedef struct Buffer nsqBuf;
 typedef struct BufferedSocket nsqBufdSock;
 
@@ -52,7 +53,9 @@ typedef struct NSQLookupdEndpoint {
     struct NSQLookupdEndpoint *next;
 } nsqLookupdEndpoint;
 
-void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg);
+int nsq_lookupd_connect_producer(nsqLookupdEndpoint *lookupd, const int count, const char *topic,
+    httpClient *httpc, void *arg, int mode);
+void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg, int mode);
 nsqLookupdEndpoint *new_nsqlookupd_endpoint(const char *address, int port);
 void free_nsqlookupd_endpoint(nsqLookupdEndpoint *nsqlookupd_endpoint);
 
@@ -116,6 +119,7 @@ typedef struct NSQReader {
     void (*msg_callback)(struct NSQReader *rdr, nsqdConn *conn, nsqMsg *msg, void *ctx);
 } nsqReader;
 
+void nsq_reader_loop_producers(nsq_json_t *producers, nsqReader *arg);
 nsqReader *new_nsq_reader(struct ev_loop *loop, const char *topic, const char *channel, void *ctx,
     nsqRWCfg *cfg,
     void (*connect_callback)(nsqReader *rdr, nsqdConn *conn),
@@ -139,6 +143,7 @@ typedef struct NSQWriter {
     httpClient *httpc;
 } nsqWriter;
 
+void nsq_writer_loop_producers(nsq_json_t *producers, nsqWriter *arg);
 nsqWriter *new_nsq_writer(struct ev_loop *loop, const char *topic, void *ctx, nsqRWCfg *cfg);
 void free_nsq_writer(nsqWriter *writer);
 void nsq_writer_close(nsqdConn *conn, nsqWriter *writer);
@@ -151,7 +156,7 @@ void nsq_write_multiple_msg_to_nsqd(nsqWriter *writer, const char **body, const 
 
 typedef struct NSQCmdParams {
     void *v;
-    int t;
+    nsqCmdParamType t;
 } nsqCmdParams;
 
 void *nsq_buf_malloc(size_t buf_size, size_t n, size_t l);
