@@ -26,8 +26,8 @@ libnsq: libnsq.a
 %.o: %.c
 	$(CC) -o $@ -c $< $(CFLAGS)
 
-libnsq.a: libevbuffsock/buffered_socket.o libevbuffsock/buffer.o config.o command.o \
-			reader.o writer.o nsqd_connection.o http.o message.o nsqlookupd.o json.o
+libnsq.a: libevbuffsock/buffered_socket.o libevbuffsock/buffer.o command.o \
+			reader.o writer.o nsqd_connection.o nsqio.o http.o message.o nsqlookupd.o json.o
 	$(AR) $(AR_FLAGS) $@ $^
 	$(RANLIB) $@
 

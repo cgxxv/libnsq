@@ -9,12 +9,12 @@ int main(int argc, char **argv)
     
     printf("publish: %s, %s, %s\n", argv[0], argv[1], argv[2]);
     
-    nsqWriter *writer;
+    nsqio *writer;
     struct ev_loop *loop;
     void *ctx = NULL;
     
     loop = ev_default_loop(0);
-    writer = new_nsq_writer(loop, argv[2], NULL, ctx);
+    writer = new_nsqio(loop, argv[2], NULL, ctx, NULL, NULL, NULL, NSQ_LOOKUPD_MODE_WRITE);
 
 #ifdef NSQD_STANDALONE
     nsq_writer_connect_to_nsqd(writer, argv[1], 4150);
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     };
     nsq_write_multiple_msg_to_nsqd(writer, body, 3);
 
-    free_nsq_writer(writer);
+    free_nsqio(writer);
 
     return 0;
 }
