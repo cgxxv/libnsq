@@ -77,9 +77,7 @@ static void nsq_reader_lookupd_poll_cb(EV_P_ struct ev_timer *w, int revents)
 {
     nsqio *rdr = (nsqio *)w->data;
     nsqLookupdEndpoint *nsqlookupd_endpoint;
-    httpRequest *req;
-    int i, idx, count = 0;
-    char buf[256];
+    int idx, count = 0;
 
     LL_FOREACH(rdr->lookupd, nsqlookupd_endpoint) {
         count++;
@@ -91,16 +89,9 @@ static void nsq_reader_lookupd_poll_cb(EV_P_ struct ev_timer *w, int revents)
 
     _DEBUG("%s: rdr %p (chose %d)\n", __FUNCTION__, rdr, idx);
 
-    i = 0;
-    LL_FOREACH(rdr->lookupd, nsqlookupd_endpoint) {
-        if (i++ == idx) {
-            sprintf(buf, "http://%s:%d/lookup?topic=%s", nsqlookupd_endpoint->address,
-                nsqlookupd_endpoint->port, rdr->topic);
-            req = new_http_request(buf, nsq_lookupd_request_cb, rdr);
-            http_client_get((struct HttpClient *)rdr->httpc, req);
-            break;
-        }
-    }
+    idx = nsq_lookupd_connect_producer(rdr->lookupd, count, rdr->topic, rdr->httpc, rdr);
+
+    _DEBUG("%s: rdr %p, lookupd count (%d), connected the (%d) nsqlookupd", __FUNCTION__, rdr, count, idx);
 
 end:
     ev_timer_again(rdr->loop, &rdr->lookupd_poll_timer);

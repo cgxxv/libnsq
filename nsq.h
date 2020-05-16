@@ -16,7 +16,7 @@ struct Buffer; // from evbuffsock.h
 
 typedef enum {NSQ_FRAME_TYPE_RESPONSE, NSQ_FRAME_TYPE_ERROR, NSQ_FRAME_TYPE_MESSAGE} frame_type;
 typedef enum {NSQ_PARAM_TYPE_INT, NSQ_PARAM_TYPE_CHAR} nsqCmdParamType;
-typedef enum {NSQ_LOOKUPD_MODE_READ, NSQ_LOOKUPD_MODE_WRITE} nsqLookupdMode;
+typedef enum {NSQIO_MODE_READ, NSQIO_MODE_WRITE} nsqioMode;
 typedef struct Buffer nsqBuf;
 typedef struct BufferedSocket nsqBufdSock;
 
@@ -39,6 +39,8 @@ typedef struct NSQLookupdEndpoint {
 
 nsqLookupdEndpoint *new_nsqlookupd_endpoint(const char *address, int port);
 void free_nsqlookupd_endpoint(nsqLookupdEndpoint *nsqlookupd_endpoint);
+int nsq_lookupd_connect_producer(nsqLookupdEndpoint *lookupd, const int count, const char *topic,
+    void *httpc, void *arg);
 
 typedef struct NSQDConnection {
     char *address;
@@ -70,6 +72,9 @@ void nsqd_connection_init_timer(nsqdConn *conn,
         void (*reconnect_callback)(EV_P_ ev_timer *w, int revents));
 void nsqd_connection_stop_timer(nsqdConn *conn);
 
+int nsqd_connection_connect_socket(nsqdConn *conn);
+void nsqd_connection_read_buffer(nsqBufdSock *buffsock, nsqdConn *conn);
+
 typedef struct NSQCfg {
     ev_tstamp lookupd_interval;
     size_t command_buf_len;
@@ -95,21 +100,27 @@ typedef struct NSQIO {
     void (*connect_callback)(struct NSQIO *rdr, nsqdConn *conn);
     void (*close_callback)(struct NSQIO *rdr, nsqdConn *conn);
     void (*msg_callback)(struct NSQIO *rdr, nsqdConn *conn, nsqMsg *msg, void *ctx);
-    nsqLookupdMode mode;
+    nsqioMode mode;
 } nsqio;
 
 nsqio *new_nsqio(struct ev_loop *loop, const char *topic, const char *channel, void *ctx,
     void (*connect_callback)(nsqio *, nsqdConn *conn),
     void (*close_callback)(nsqio *, nsqdConn *conn),
     void (*msg_callback)(nsqio *, nsqdConn *conn, nsqMsg *msg, void *ctx),
-    nsqLookupdMode mode);
-void free_nsqio(nsqio *);
+    nsqioMode mode);
+void free_nsqio(nsqio *, nsqioMode);
 
 int nsq_reader_connect_to_nsqd(nsqio *rdr, const char *address, int port);
 int nsq_reader_connect_to_nsqlookupd(nsqio *rdr);
 int nsq_reader_add_nsqlookupd_endpoint(nsqio *rdr, const char *address, int port);
 void nsq_reader_set_loop(nsqio *rdr, struct ev_loop *loop);
 void nsq_reader_run(struct ev_loop *loop);
+
+int nsq_writer_connect_to_nsqd(nsqio *writer, const char *address, int port);
+int nsq_writer_add_nsqlookupd_endpoint(nsqio *writer, const char *address, int port);
+void nsq_write_msg_to_nsqd(nsqio *writer, const char *body);
+void nsq_write_defered_msg_to_nsqd(nsqio *writer, const char *body, int defer_time_sec);
+void nsq_write_multiple_msg_to_nsqd(nsqio *writer, const char **body, const int body_size);
 
 typedef struct NSQCmdParams {
     void *v;

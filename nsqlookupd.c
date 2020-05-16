@@ -4,11 +4,10 @@
 #include "json.h"
 #include "utlist.h"
 
-
 void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
 {
     nsqio *rdr = (nsqio *)arg;
-    nsq_json_t *jsobj, *data, *producers, *producer, *broadcast_address_obj, *tcp_port_obj;
+    nsq_json_t *jsobj, *producers, *producer, *broadcast_address_obj, *tcp_port_obj;
     nsq_json_tokener_t *jstok;
     nsqdConn *conn;
     const char *broadcast_address;
@@ -89,4 +88,29 @@ void free_nsqlookupd_endpoint(nsqLookupdEndpoint *nsqlookupd_endpoint)
         free(nsqlookupd_endpoint->address);
         free(nsqlookupd_endpoint);
     }
+}
+
+int nsq_lookupd_connect_producer(nsqLookupdEndpoint *lookupd, const int count, const char *topic,
+    void *httpc, void *arg)
+{
+    nsqLookupdEndpoint *nsqlookupd_endpoint;
+    httpRequest *req;
+    int i = 0, idx;
+    char buf[256];
+
+    idx = rand() % count;
+
+    _DEBUG("%s: lookupd %p (chose %d), topic %s, httpClient %p", __FUNCTION__, lookupd, idx, topic, httpc);
+
+    LL_FOREACH(lookupd, nsqlookupd_endpoint) {
+        if (i == idx) {
+            sprintf(buf, "http://%s:%d/lookup?topic=%s", nsqlookupd_endpoint->address,
+                nsqlookupd_endpoint->port, topic);
+            req = new_http_request(buf, nsq_lookupd_request_cb, arg);
+            http_client_get(httpc, req);
+            break;
+        }
+    }
+    
+    return idx;
 }

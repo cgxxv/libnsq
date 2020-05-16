@@ -19,6 +19,7 @@ endif
 
 LIBNSQ_SOURCES = \
 nsqio.c \
+writer.c \
 command.c \
 message.c \
 reader.c \
@@ -39,16 +40,22 @@ libnsq.a: $(patsubst %.c, %.o, ${LIBNSQ_SOURCES})
 	$(AR) $(AR_FLAGS) $@ $^
 	$(RANLIB) $@
 
-test: test-nsqd test-lookupd test-evbuffsock
+test: test-nsqd-sub test-lookupd-sub test-evbuffsock test-nsqd-pub test-lookupd-pub
 
-test-nsqd: test_sub.c libnsq.a
+test-nsqd-sub: test_sub.c libnsq.a
 	$(CC) -o $@ $^ -I. $(CFLAGS) $(LIBS) -DNSQD_STANDALONE
 
-test-lookupd: test_sub.c libnsq.a
+test-lookupd-sub: test_sub.c libnsq.a
 	$(CC) -o $@ $^ -I. $(CFLAGS) $(LIBS)
 
 test-evbuffsock: test_evbuffsock.c buffer.c
 	$(CC) -o $@ $^ $(CFLAGS) -lev
+	
+test-nsqd-pub: test_pub.c libnsq.a
+	$(CC) -o $@ $^ -I. $(CFLAGS) $(LIBS) -DNSQD_STANDALONE
+
+test-lookupd-pub: test_pub.c libnsq.a
+	$(CC) -o $@ $^ -I. $(CFLAGS) $(LIBS)
 
 clean:
 	rm -rvf libnsq.a test-nsqd test-lookupd test-evbuffsock *.dSYM *.o
