@@ -70,6 +70,9 @@ void nsqd_connection_init_timer(nsqdConn *conn,
         void (*reconnect_callback)(EV_P_ ev_timer *w, int revents));
 void nsqd_connection_stop_timer(nsqdConn *conn);
 
+int nsqd_connection_connect_socket(nsqdConn *conn);
+void nsqd_connection_read_buffer(nsqBufdSock *buffsock, nsqdConn *conn);
+
 typedef struct NSQCfg {
     ev_tstamp lookupd_interval;
     size_t command_buf_len;

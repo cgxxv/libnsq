@@ -162,3 +162,141 @@ void nsqd_connection_stop_timer(nsqdConn *conn)
         free(conn->reconnect_timer);
     }
 }
+
+static const int readBufLenPer = 4096;
+
+void nsqd_connection_read_buffer(nsqBufdSock *buffsock, nsqdConn *conn)
+{
+    size_t n = 0;
+
+    while (1) {
+        if (BUFFER_AVAILABLE(buffsock->read_buf) < readBufLenPer &&
+            !buffer_expand(buffsock->read_buf, readBufLenPer)) {
+            break;
+        }
+
+        n += recv(buffsock->fd, buffsock->read_buf->data + buffsock->read_buf->offset, readBufLenPer, 0);
+        buffsock->read_buf->offset += n;
+
+        if (n <= buffsock->read_buf->length) {
+            break;
+        }
+    }
+
+    // convert message length header from big-endian
+    conn->current_msg_size = ntohl(*((uint32_t *)buffsock->read_buf->data));
+    buffer_drain(buffsock->read_buf, 4);
+
+    conn->current_frame_type = ntohl(*((uint32_t *)buffsock->read_buf->data));
+    buffer_drain(buffsock->read_buf, 4);
+
+    conn->current_msg_size -= 4;
+    conn->current_data = buffsock->read_buf->data;
+
+    _DEBUG("%s: frame type %d, current_msg_size: %d, data: %s\n", __FUNCTION__, conn->current_frame_type,
+        conn->current_msg_size, conn->current_data);
+
+    switch (conn->current_frame_type) {
+        case NSQ_FRAME_TYPE_RESPONSE:
+            printf("\033[32m%s:%d response = %s\033[0m\n", __FILE__, __LINE__, conn->current_data);
+            break;
+        case NSQ_FRAME_TYPE_ERROR:
+            printf("\033[31m%s:%d error (%s)\033[0m\n", __FILE__, __LINE__, conn->current_data);
+            break;
+    }
+
+    buffer_drain(buffsock->read_buf, conn->current_msg_size);
+
+    _DEBUG("%s: response size %ld\n", __FUNCTION__, n);
+}
+
+static size_t nsqd_connection_write_magic(nsqBufdSock *buffsock)
+{
+    size_t n = 0;
+
+    // send magic
+    buffer_add(buffsock->write_buf, "  V2", 4);
+    if ((n = buffer_write_fd(buffsock->write_buf, buffsock->fd)) == -1) {
+        _DEBUG("%s: wirte magic flag error, errno: %d", __FUNCTION__, errno);
+        return -1;
+    }
+
+    int error;
+    socklen_t errsz = sizeof(error);
+
+    if (getsockopt(buffsock->fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errsz) == -1) {
+        _DEBUG("%s: getsockopt failed for \"%s:%d\" on %d",
+               __FUNCTION__, buffsock->address, buffsock->port, buffsock->fd);
+        buffered_socket_close(buffsock);
+        return -1;
+    }
+
+    if (error) {
+        _DEBUG("%s: \"%s\" for \"%s:%d\" on %d",
+               __FUNCTION__, strerror(error), buffsock->address, buffsock->port, buffsock->fd);
+        buffered_socket_close(buffsock);
+        return -1;
+    }
+
+    _DEBUG("%s: connected to \"%s:%d\" on %d",
+           __FUNCTION__, buffsock->address, buffsock->port, buffsock->fd);
+
+    return n;
+}
+
+int nsqd_connection_connect_socket(nsqdConn *conn)
+{
+    nsqBufdSock *buffsock = conn->bs;
+
+    struct addrinfo ai, *aitop;
+    char strport[32];
+    struct sockaddr *sa;
+    int slen;
+    long flags;
+
+    memset(&ai, 0, sizeof(struct addrinfo));
+    ai.ai_family = AF_INET;
+    ai.ai_socktype = SOCK_STREAM;
+    snprintf(strport, sizeof(strport), "%d", buffsock->port);
+    if (getaddrinfo(buffsock->address, strport, &ai, &aitop) != 0) {
+        _DEBUG("%s: getaddrinfo() failed\n", __FUNCTION__);
+        return 0;
+    }
+    sa = aitop->ai_addr;
+    slen = aitop->ai_addrlen;
+
+    if ((buffsock->fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        _DEBUG("%s: socket() failed\n", __FUNCTION__);
+        return 0;
+    }
+
+    if ((flags = fcntl(buffsock->fd, F_GETFL, NULL)) < 0) {
+        close(buffsock->fd);
+        _DEBUG("%s: fcntl(%d, F_GETFL) failed\n", __FUNCTION__, buffsock->fd);
+        return 0;
+    }
+    if (fcntl(buffsock->fd, F_SETFL, flags | O_APPEND) == -1) {
+        close(buffsock->fd);
+        _DEBUG("%s: fcntl(%d, F_SETFL) failed\n", __FUNCTION__, buffsock->fd);
+        return 0;
+    }
+
+    if (connect(buffsock->fd, sa, slen) == -1) {
+        if (errno != EINPROGRESS) {
+            close(buffsock->fd);
+            _DEBUG("%s: connect() failed\n", __FUNCTION__);
+            return 0;
+        }
+    }
+
+    freeaddrinfo(aitop);
+    
+    if (nsqd_connection_write_magic(buffsock) == -1) {
+        _DEBUG("%s: write magic error", __FUNCTION__);
+        return 0;
+    }
+    
+    buffsock->state = BS_CONNECTED;
+
+    return buffsock->fd;
+}
