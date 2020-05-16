@@ -76,10 +76,17 @@ void free_nsqio(nsqio *nio, nsqioMode mode)
     if (nio) {
         // TODO: this should probably trigger disconnections and then keep
         // trying to clean up until everything upstream is finished
-        if (mode == NSQIO_MODE_READ) {
-            LL_FOREACH(nio->conns, conn) {
+        LL_FOREACH(nio->conns, conn) {
+            if (mode == NSQIO_MODE_READ) {
                 nsqd_connection_disconnect(conn);
+            } else if (mode == NSQIO_MODE_WRITE) {
+                if (conn->bs->fd != -1) {
+                    close(conn->bs->fd);
+                    conn->bs->fd = -1;
+                }
+                conn->bs->state = BS_DISCONNECTED;
             }
+            free_nsqd_connection(conn);
         }
         LL_FOREACH(nio->lookupd, nsqlookupd_endpoint) {
             free_nsqlookupd_endpoint(nsqlookupd_endpoint);
