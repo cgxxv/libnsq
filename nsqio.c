@@ -20,7 +20,7 @@ nsqio *new_nsqio(struct ev_loop *loop, const char *topic, const char *channel, v
     void (*connect_callback)(nsqio *nio, nsqdConn *conn),
     void (*close_callback)(nsqio *nio, nsqdConn *conn),
     void (*msg_callback)(nsqio *nio, nsqdConn *conn, nsqMsg *msg, void *ctx),
-    nsqLookupdMode mode)
+    nsqioMode mode)
 {
     nsqio *nio;
 
@@ -68,7 +68,7 @@ nsqio *new_nsqio(struct ev_loop *loop, const char *topic, const char *channel, v
     return nio;
 }
 
-void free_nsqio(nsqio *nio)
+void free_nsqio(nsqio *nio, nsqioMode mode)
 {
     nsqdConn *conn;
     nsqLookupdEndpoint *nsqlookupd_endpoint;
@@ -76,8 +76,10 @@ void free_nsqio(nsqio *nio)
     if (nio) {
         // TODO: this should probably trigger disconnections and then keep
         // trying to clean up until everything upstream is finished
-        LL_FOREACH(nio->conns, conn) {
-            nsqd_connection_disconnect(conn);
+        if (mode == NSQIO_MODE_READ) {
+            LL_FOREACH(nio->conns, conn) {
+                nsqd_connection_disconnect(conn);
+            }
         }
         LL_FOREACH(nio->lookupd, nsqlookupd_endpoint) {
             free_nsqlookupd_endpoint(nsqlookupd_endpoint);

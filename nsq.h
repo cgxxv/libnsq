@@ -16,7 +16,7 @@ struct Buffer; // from evbuffsock.h
 
 typedef enum {NSQ_FRAME_TYPE_RESPONSE, NSQ_FRAME_TYPE_ERROR, NSQ_FRAME_TYPE_MESSAGE} frame_type;
 typedef enum {NSQ_PARAM_TYPE_INT, NSQ_PARAM_TYPE_CHAR} nsqCmdParamType;
-typedef enum {NSQ_LOOKUPD_MODE_READ, NSQ_LOOKUPD_MODE_WRITE} nsqLookupdMode;
+typedef enum {NSQIO_MODE_READ, NSQIO_MODE_WRITE} nsqioMode;
 typedef struct Buffer nsqBuf;
 typedef struct BufferedSocket nsqBufdSock;
 
@@ -100,15 +100,15 @@ typedef struct NSQIO {
     void (*connect_callback)(struct NSQIO *rdr, nsqdConn *conn);
     void (*close_callback)(struct NSQIO *rdr, nsqdConn *conn);
     void (*msg_callback)(struct NSQIO *rdr, nsqdConn *conn, nsqMsg *msg, void *ctx);
-    nsqLookupdMode mode;
+    nsqioMode mode;
 } nsqio;
 
 nsqio *new_nsqio(struct ev_loop *loop, const char *topic, const char *channel, void *ctx,
     void (*connect_callback)(nsqio *, nsqdConn *conn),
     void (*close_callback)(nsqio *, nsqdConn *conn),
     void (*msg_callback)(nsqio *, nsqdConn *conn, nsqMsg *msg, void *ctx),
-    nsqLookupdMode mode);
-void free_nsqio(nsqio *);
+    nsqioMode mode);
+void free_nsqio(nsqio *, nsqioMode);
 
 int nsq_reader_connect_to_nsqd(nsqio *rdr, const char *address, int port);
 int nsq_reader_connect_to_nsqlookupd(nsqio *rdr);
