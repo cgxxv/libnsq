@@ -39,6 +39,8 @@ typedef struct NSQLookupdEndpoint {
 
 nsqLookupdEndpoint *new_nsqlookupd_endpoint(const char *address, int port);
 void free_nsqlookupd_endpoint(nsqLookupdEndpoint *nsqlookupd_endpoint);
+int nsq_lookupd_connect_producer(nsqLookupdEndpoint *lookupd, const int count, const char *topic,
+                                 void *httpc, void *arg);
 
 typedef struct NSQDConnection {
     char *address;
