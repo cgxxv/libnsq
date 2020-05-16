@@ -117,7 +117,7 @@ end:
 }
 
 nsqRdr *new_nsq_reader(struct ev_loop *loop, const char *topic, const char *channel, void *ctx,
-    nsqRdrCfg *cfg,
+    nsqCfg *cfg,
     void (*connect_callback)(nsqRdr *rdr, nsqdConn *conn),
     void (*close_callback)(nsqRdr *rdr, nsqdConn *conn),
     void (*msg_callback)(nsqRdr *rdr, nsqdConn *conn, nsqMsg *msg, void *ctx))
@@ -125,7 +125,7 @@ nsqRdr *new_nsq_reader(struct ev_loop *loop, const char *topic, const char *chan
     nsqRdr *rdr;
 
     rdr = (nsqRdr *)malloc(sizeof(nsqRdr));
-    rdr->cfg = (nsqRdrCfg *)malloc(sizeof(nsqRdrCfg));
+    rdr->cfg = (nsqCfg *)malloc(sizeof(nsqCfg));
     if (cfg == NULL) {
         rdr->cfg->lookupd_interval     = DEFAULT_LOOKUPD_INTERVAL;
         rdr->cfg->command_buf_len      = DEFAULT_COMMAND_BUF_LEN;

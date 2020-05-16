@@ -55,7 +55,7 @@ typedef struct NSQDConnection {
     struct NSQDConnection *next;
 } nsqdConn;
 
-typedef struct NSQReaderCfg {
+typedef struct NSQCfg {
     ev_tstamp lookupd_interval;
     size_t command_buf_len;
     size_t command_buf_capacity;
@@ -63,7 +63,7 @@ typedef struct NSQReaderCfg {
     size_t read_buf_capacity;
     size_t write_buf_len;
     size_t write_buf_capacity;
-} nsqRdrCfg;
+} nsqCfg;
 
 typedef struct NSQReader {
     char *topic;
@@ -75,7 +75,7 @@ typedef struct NSQReader {
     nsqLookupdEndpoint *lookupd;
     struct ev_timer lookupd_poll_timer;
     struct ev_loop *loop;
-    nsqRdrCfg *cfg;
+    nsqCfg *cfg;
     void *httpc;
     void (*connect_callback)(struct NSQReader *rdr, nsqdConn *conn);
     void (*close_callback)(struct NSQReader *rdr, nsqdConn *conn);
@@ -83,7 +83,7 @@ typedef struct NSQReader {
 } nsqRdr;
 
 nsqRdr *new_nsq_reader(struct ev_loop *loop, const char *topic, const char *channel, void *ctx,
-    nsqRdrCfg *cfg,
+    nsqCfg *cfg,
     void (*connect_callback)(nsqRdr *rdr, nsqdConn *conn),
     void (*close_callback)(nsqRdr *rdr, nsqdConn *conn),
     void (*msg_callback)(nsqRdr *rdr, nsqdConn *conn, nsqMsg *msg, void *ctx));
