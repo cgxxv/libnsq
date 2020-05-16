@@ -7,12 +7,12 @@
 
 void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
 {
-    nsqio *rdr = (nsqio *)arg;
-    nsq_json_t *jsobj, *data, *producers, *producer, *broadcast_address_obj, *tcp_port_obj;
+    nsqio *nio = (nsqio *)arg;
+    nsq_json_t *jsobj, *producers, *producer, *broadcast_address_obj, *tcp_port_obj;
     nsq_json_tokener_t *jstok;
     nsqdConn *conn;
     const char *broadcast_address;
-    int found, tcp_port;
+    int found, tcp_port, rc = 0;
 
     _DEBUG("%s: status_code %d, body %.*s\n", __FUNCTION__, resp->status_code,
         (int)BUFFER_HAS_DATA(resp->data), resp->data->data);
@@ -51,7 +51,7 @@ void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
         _DEBUG("%s: broadcast_address %s, port %d\n", __FUNCTION__, broadcast_address, tcp_port);
 
         found = 0;
-        LL_FOREACH(rdr->conns, conn) {
+        LL_FOREACH(nio->conns, conn) {
             if (strcmp(conn->bs->address, broadcast_address) == 0
                 && conn->bs->port == tcp_port) {
                 found = 1;
@@ -60,7 +60,16 @@ void nsq_lookupd_request_cb(httpRequest *req, httpResponse *resp, void *arg)
         }
 
         if (!found) {
-            nsq_reader_connect_to_nsqd(rdr, broadcast_address, tcp_port);
+            if (nio->mode == NSQIO_MODE_READ) {
+                rc = nsq_reader_connect_to_nsqd(nio, broadcast_address, tcp_port);
+            } else if (nio->mode == NSQIO_MODE_WRITE) {
+                rc = nsq_writer_connect_to_nsqd(nio, broadcast_address, tcp_port);
+            }
+            if (rc <= 0) {
+                _DEBUG("\033[31m%s:%d Error! connected to (0:read,1:write %d) nsqd\033[0m\n", __FILE__, __LINE__, nio->mode);
+            } else {
+                _DEBUG("\033[32m%s:%d Success! connected to (0:read,1:write %d) nsqd\033[0m\n", __FILE__, __LINE__, nio->mode);
+            }
         }
     }
 
@@ -101,7 +110,7 @@ int nsq_lookupd_connect_producer(nsqLookupdEndpoint *lookupd, const int count, c
 
     idx = rand() % count;
 
-    _DEBUG("%s: lookupd %p (chose %d), topic %s, httpClient %p", __FUNCTION__, lookupd, idx, topic, httpc);
+    _DEBUG("%s: lookupd %p (chose %d), topic %s, httpClient %p\n", __FUNCTION__, lookupd, idx, topic, httpc);
 
     LL_FOREACH(lookupd, nsqlookupd_endpoint) {
         if (i == idx) {

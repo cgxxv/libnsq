@@ -116,6 +116,12 @@ int nsq_reader_add_nsqlookupd_endpoint(nsqio *rdr, const char *address, int port
 void nsq_reader_set_loop(nsqio *rdr, struct ev_loop *loop);
 void nsq_reader_run(struct ev_loop *loop);
 
+int nsq_writer_connect_to_nsqd(nsqio *writer, const char *address, int port);
+int nsq_writer_add_nsqlookupd_endpoint(nsqio *writer, const char *address, int port);
+void nsq_write_msg_to_nsqd(nsqio *writer, const char *body);
+void nsq_write_defered_msg_to_nsqd(nsqio *writer, const char *body, int defer_time_sec);
+void nsq_write_multiple_msg_to_nsqd(nsqio *writer, const char **body, const int body_size);
+
 typedef struct NSQCmdParams {
     void *v;
     nsqCmdParamType t;

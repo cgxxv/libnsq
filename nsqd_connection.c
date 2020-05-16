@@ -217,7 +217,7 @@ static size_t nsqd_connection_write_magic(nsqBufdSock *buffsock)
     // send magic
     buffer_add(buffsock->write_buf, "  V2", 4);
     if ((n = buffer_write_fd(buffsock->write_buf, buffsock->fd)) == -1) {
-        _DEBUG("%s: wirte magic flag error, errno: %d", __FUNCTION__, errno);
+        _DEBUG("%s: wirte magic flag error, errno: %d\n", __FUNCTION__, errno);
         return -1;
     }
 
@@ -225,20 +225,20 @@ static size_t nsqd_connection_write_magic(nsqBufdSock *buffsock)
     socklen_t errsz = sizeof(error);
 
     if (getsockopt(buffsock->fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errsz) == -1) {
-        _DEBUG("%s: getsockopt failed for \"%s:%d\" on %d",
+        _DEBUG("%s: getsockopt failed for \"%s:%d\" on %d\n",
                __FUNCTION__, buffsock->address, buffsock->port, buffsock->fd);
         buffered_socket_close(buffsock);
         return -1;
     }
 
     if (error) {
-        _DEBUG("%s: \"%s\" for \"%s:%d\" on %d",
+        _DEBUG("%s: \"%s\" for \"%s:%d\" on %d\n",
                __FUNCTION__, strerror(error), buffsock->address, buffsock->port, buffsock->fd);
         buffered_socket_close(buffsock);
         return -1;
     }
 
-    _DEBUG("%s: connected to \"%s:%d\" on %d",
+    _DEBUG("%s: connected to \"%s:%d\" on %d\n",
            __FUNCTION__, buffsock->address, buffsock->port, buffsock->fd);
 
     return n;
@@ -292,7 +292,7 @@ int nsqd_connection_connect_socket(nsqdConn *conn)
     freeaddrinfo(aitop);
     
     if (nsqd_connection_write_magic(buffsock) == -1) {
-        _DEBUG("%s: write magic error", __FUNCTION__);
+        _DEBUG("%s: write magic error\n", __FUNCTION__);
         return 0;
     }
     
